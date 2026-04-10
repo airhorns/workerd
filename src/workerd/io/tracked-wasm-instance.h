@@ -74,20 +74,9 @@ struct TrackedWasmInstance {
   v8::Global<v8::Object> instanceRef;
 
   // Returns true if the entry should be kept in the list, false if it should be removed.
-  //
-  // An entry should be removed when:
-  //   - The module set its terminated flag (fast-path, avoids waiting for GC), or
-  //   - The instance was garbage-collected (instanceRef became empty).
+  // An entry is removed when V8 garbage-collects the WASM instance, which resets the weak
+  // handle making IsEmpty() return true.
   bool shouldRetain() const {
-    // Fast-path: if the module set its terminated flag, remove immediately.
-    KJ_IF_SOME(offset, terminatedByteOffset) {
-      uint32_t terminated = 0;
-      for (auto& b: memory.slice(offset, offset + WASM_SIGNAL_FIELD_BYTES)) {
-        terminated |= b;
-      }
-      if (terminated != 0) return false;
-    }
-    // If the weak reference to the instance is dead, the instance was GC'd.
     return !instanceRef.IsEmpty();
   }
 };
